@@ -14,7 +14,7 @@ precedence = (
 # Programa principal
 def p_program(p):
     'program : PROGRAM ID SEMICOLON declarations block DOT'
-    print("Programa válido")
+    #print("Programa válido")
     p[0] = ('program', p[2], p[4], p[5])
 
 # Declarações de variáveis
@@ -209,9 +209,10 @@ def p_empty(p):
 # Erros
 def p_error(p):
     if p:
-        print(f"Erro de sintaxe perto de '{p.value}' (linha {p.lineno})")
+        msg = f"Erro de sintaxe perto de '{p.value}' (linha {p.lineno})"
     else:
-        print("Erro de sintaxe: fim de ficheiro inesperado")
+        msg = "Erro de sintaxe: fim de ficheiro inesperado"
+    raise SyntaxError(msg)  # ← isto é o que vai permitir capturar no correr_testes
 
 # Criar parser
 parser = yacc.yacc()
