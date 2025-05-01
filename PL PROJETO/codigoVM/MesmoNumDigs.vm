@@ -1,0 +1,53 @@
+pushi 0
+pushi 0
+start
+read
+atoi
+storeg 0
+read
+atoi
+storeg 1
+pushg 0
+pushn 1
+call NumDigitos
+pushg 1
+pushn 1
+call NumDigitos
+equal
+jz ELSE1
+pushs "Têm o mesmo número de dígitos."
+writes
+writeln
+jump ENDIF0
+ELSE1:
+pushs "Têm número de dígitos diferente."
+writes
+writeln
+ENDIF0:
+stop
+NumDigitos:
+pushi 0
+pushi 0
+pushi 0
+pushi 0
+storeg 1
+WHILE2:
+pushg 0
+pushi 0
+equal
+not
+jz ENDWHILE3
+pushg 1
+pushi 1
+add
+storeg 1
+pushg 0
+pushi 10
+div
+storeg 0
+jump WHILE2
+ENDWHILE3:
+pushg 1
+storeg 2
+pushg 0
+return

@@ -1,0 +1,55 @@
+pushi 0
+pushi 0
+start
+read
+atoi
+storeg 0
+pushg 0
+pushn 1
+call SomaPares
+storeg 1
+pushs "Soma dos pares até "
+writes
+pushg 0
+writei
+pushs ": "
+writes
+pushg 1
+writei
+writeln
+stop
+SomaPares:
+pushi 0
+pushi 0
+pushi 0
+pushi 0
+pushi 0
+storeg 2
+pushi 0
+storeg 1
+WHILE0:
+pushg 1
+pushg 0
+infeq
+jz ENDWHILE1
+pushg 1
+pushi 2
+mod
+pushi 0
+equal
+jz ENDIF2
+pushg 2
+pushg 1
+add
+storeg 2
+ENDIF2:
+pushg 1
+pushi 1
+add
+storeg 1
+jump WHILE0
+ENDWHILE1:
+pushg 2
+storeg 3
+pushg 0
+return

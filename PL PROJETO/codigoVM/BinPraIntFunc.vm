@@ -1,0 +1,64 @@
+pushi 0
+pushi 0
+start
+pushs "Introduza uma string binária:"
+writes
+writeln
+read
+atoi
+storeg 0
+pushg 0
+pushn 1
+call BinToInt
+storeg 1
+pushs "O valor inteiro correspondente é: "
+writes
+pushg 1
+writei
+writeln
+stop
+BinToInt:
+pushi 0
+pushi 0
+pushi 0
+pushi 0
+pushi 0
+pushi 0
+storeg 2
+pushi 1
+storeg 3
+pushg 0
+pushn 1
+call length
+storeg 1
+FOR0:
+pushg 1
+pushi 1
+sup
+jz ENDFOR1
+pushg 1
+pushg 0
+add
+loadn
+pushs "1"
+equal
+jz ENDIF2
+pushg 2
+pushg 3
+add
+storeg 2
+ENDIF2:
+pushg 3
+pushi 2
+mul
+storeg 3
+pushg 1
+pushi 1
+sub
+storeg 1
+jump FOR0
+ENDFOR1:
+pushg 2
+storeg 4
+pushg 0
+return

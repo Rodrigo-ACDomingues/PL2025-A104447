@@ -1,0 +1,64 @@
+pushi 0
+pushi 0
+pushi 0
+start
+pushs "Introduza 5 números:"
+writes
+writeln
+pushi 1
+storeg 1
+FOR0:
+pushg 1
+pushi 5
+inf
+jz ENDFOR1
+read
+atoi
+storeg 0
+pushg 1
+pushi 1
+add
+storeg 1
+jump FOR0
+ENDFOR1:
+pushg 0
+pushn 1
+call Soma
+storeg 2
+pushs "Soma = "
+writes
+pushg 2
+writei
+writeln
+stop
+Soma:
+pushi 0
+pushi 0
+pushi 0
+pushi 0
+pushi 0
+storeg 2
+pushi 1
+storeg 1
+FOR2:
+pushg 1
+pushi 5
+inf
+jz ENDFOR3
+pushg 2
+pushg 1
+pushg 0
+add
+loadn
+add
+storeg 2
+pushg 1
+pushi 1
+add
+storeg 1
+jump FOR2
+ENDFOR3:
+pushg 2
+storeg 3
+pushg 0
+return
