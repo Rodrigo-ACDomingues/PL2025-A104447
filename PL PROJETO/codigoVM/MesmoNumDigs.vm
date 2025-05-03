@@ -1,18 +1,22 @@
 pushi 0
+storeg 0
 pushi 0
+storeg 1
 start
 read
+dup 1
 atoi
 storeg 0
 read
+dup 1
 atoi
 storeg 1
 pushg 0
-pushn 1
-call NumDigitos
+pusha NumDigitos
+call
 pushg 1
-pushn 1
-call NumDigitos
+pusha NumDigitos
+call
 equal
 jz ELSE1
 pushs "Têm o mesmo número de dígitos."
@@ -30,24 +34,24 @@ pushi 0
 pushi 0
 pushi 0
 pushi 0
-storeg 1
+storel 1
 WHILE2:
-pushg 0
+pushl 0
 pushi 0
 equal
 not
 jz ENDWHILE3
-pushg 1
+pushl 1
 pushi 1
 add
-storeg 1
-pushg 0
+storel 1
+pushl 0
 pushi 10
 div
-storeg 0
+storel 0
 jump WHILE2
 ENDWHILE3:
-pushg 1
-storeg 2
-pushg 0
+pushl 1
+storel 2
+pushl 2
 return

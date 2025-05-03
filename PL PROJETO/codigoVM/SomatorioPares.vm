@@ -1,12 +1,15 @@
 pushi 0
+storeg 0
 pushi 0
+storeg 1
 start
 read
+dup 1
 atoi
 storeg 0
 pushg 0
-pushn 1
-call SomaPares
+pusha SomaPares
+call
 storeg 1
 pushs "Soma dos pares até "
 writes
@@ -24,32 +27,32 @@ pushi 0
 pushi 0
 pushi 0
 pushi 0
-storeg 2
+storel 2
 pushi 0
-storeg 1
+storel 1
 WHILE0:
-pushg 1
-pushg 0
+pushl 1
+pushl 0
 infeq
 jz ENDWHILE1
-pushg 1
+pushl 1
 pushi 2
 mod
 pushi 0
 equal
 jz ENDIF2
-pushg 2
-pushg 1
+pushl 2
+pushl 1
 add
-storeg 2
+storel 2
 ENDIF2:
-pushg 1
+pushl 1
 pushi 1
 add
-storeg 1
+storel 1
 jump WHILE0
 ENDWHILE1:
-pushg 2
-storeg 3
-pushg 0
+pushl 2
+storel 3
+pushl 3
 return

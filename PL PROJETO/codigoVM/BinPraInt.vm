@@ -1,12 +1,17 @@
 pushi 0
+storeg 0
 pushi 0
+storeg 1
 pushi 0
+storeg 2
 pushi 0
+storeg 3
 start
 pushs "Introduza uma string binária:"
 writes
 writeln
 read
+dup 1
 atoi
 storeg 0
 pushi 0
@@ -14,17 +19,15 @@ storeg 2
 pushi 1
 storeg 3
 pushg 0
-pushn 1
-call length
+strlen
 storeg 1
 FOR0:
 pushg 1
 pushi 1
 sup
 jz ENDFOR1
-pushg 1
 pushg 0
-add
+pushg 1
 loadn
 pushs "1"
 equal

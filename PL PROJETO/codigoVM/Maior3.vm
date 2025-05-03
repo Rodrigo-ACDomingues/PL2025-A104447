@@ -1,21 +1,28 @@
 pushi 0
+storeg 0
 pushi 0
+storeg 1
 pushi 0
+storeg 2
 pushi 0
+storeg 3
 start
 pushs "Introduza o primeiro número: "
 writes
 read
+dup 1
 atoi
 storeg 0
 pushs "Introduza o segundo número: "
 writes
 read
+dup 1
 atoi
 storeg 1
 pushs "Introduza o terceiro número: "
 writes
 read
+dup 1
 atoi
 storeg 2
 pushg 0

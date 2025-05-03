@@ -1,6 +1,9 @@
 pushi 0
+storeg 0
 pushi 0
+storeg 1
 pushi 0
+storeg 2
 start
 pushi 0
 storeg 2
@@ -12,15 +15,15 @@ storeg 1
 FOR0:
 pushg 1
 pushi 5
-inf
+infeq
 jz ENDFOR1
 read
+dup 1
 atoi
 storeg 0
 pushg 2
-pushg 1
 pushg 0
-add
+pushg 1
 loadn
 add
 storeg 2

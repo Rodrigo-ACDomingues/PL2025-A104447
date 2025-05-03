@@ -23,4 +23,5 @@ def correr_codigo_vm(ficheiro_pas):
 # Test all files in the "testes" directory
 for ficheiro in os.listdir("testes"):
     if ficheiro.endswith(".pas") and not(ficheiro.startswith("Erro")):
+    #if ficheiro.endswith(".pas"):
         correr_codigo_vm(ficheiro)

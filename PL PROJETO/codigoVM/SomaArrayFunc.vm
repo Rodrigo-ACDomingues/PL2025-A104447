@@ -1,6 +1,9 @@
 pushi 0
+storeg 0
 pushi 0
+storeg 1
 pushi 0
+storeg 2
 start
 pushs "Introduza 5 números:"
 writes
@@ -10,9 +13,10 @@ storeg 1
 FOR0:
 pushg 1
 pushi 5
-inf
+infeq
 jz ENDFOR1
 read
+dup 1
 atoi
 storeg 0
 pushg 1
@@ -22,8 +26,8 @@ storeg 1
 jump FOR0
 ENDFOR1:
 pushg 0
-pushn 1
-call Soma
+pusha Soma
+call
 storeg 2
 pushs "Soma = "
 writes
@@ -37,28 +41,27 @@ pushi 0
 pushi 0
 pushi 0
 pushi 0
-storeg 2
+storel 2
 pushi 1
-storeg 1
+storeg ('local', 1)
 FOR2:
-pushg 1
+pushg ('local', 1)
 pushi 5
-inf
+infeq
 jz ENDFOR3
-pushg 2
-pushg 1
-pushg 0
-add
+pushl 2
+pushl 0
+pushl 1
 loadn
 add
-storeg 2
-pushg 1
+storel 2
+pushg ('local', 1)
 pushi 1
 add
-storeg 1
+storeg ('local', 1)
 jump FOR2
 ENDFOR3:
-pushg 2
-storeg 3
-pushg 0
+pushl 2
+storel 3
+pushl 3
 return

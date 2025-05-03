@@ -1,15 +1,18 @@
 pushi 0
+storeg 0
 pushi 0
+storeg 1
 start
 pushs "Introduza uma string binária:"
 writes
 writeln
 read
+dup 1
 atoi
 storeg 0
 pushg 0
-pushn 1
-call BinToInt
+pusha BinToInt
+call
 storeg 1
 pushs "O valor inteiro correspondente é: "
 writes
@@ -24,41 +27,39 @@ pushi 0
 pushi 0
 pushi 0
 pushi 0
-storeg 2
+storel 2
 pushi 1
-storeg 3
-pushg 0
-pushn 1
-call length
-storeg 1
+storel 3
+pushl 0
+strlen
+storeg ('local', 1)
 FOR0:
-pushg 1
+pushg ('local', 1)
 pushi 1
 sup
 jz ENDFOR1
-pushg 1
-pushg 0
-add
+pushl 0
+pushl 1
 loadn
 pushs "1"
 equal
 jz ENDIF2
-pushg 2
-pushg 3
+pushl 2
+pushl 3
 add
-storeg 2
+storel 2
 ENDIF2:
-pushg 3
+pushl 3
 pushi 2
 mul
-storeg 3
-pushg 1
+storel 3
+pushg ('local', 1)
 pushi 1
 sub
-storeg 1
+storeg ('local', 1)
 jump FOR0
 ENDFOR1:
-pushg 2
-storeg 4
-pushg 0
+pushl 2
+storel 4
+pushl 4
 return

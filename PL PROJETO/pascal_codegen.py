@@ -21,7 +21,6 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
 
     tipo, nome, declaracoes, bloco = ast
 
-    # Construir tabela de variáveis globais
     global_vars = {}
     pos = 0
     for decl in declaracoes:
@@ -29,15 +28,19 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
             for d in decl:
                 if d[0] == 'var_decl':
                     for var in d[1]:
+                        if var == 'array':
+                            escrever("pushi 5")
+                            escrever("allocn")
+                        else:
+                            escrever("pushi 0")
+                        escrever(f"storeg {pos}")
                         global_vars[var] = pos
-                        escrever("pushi 0")
                         pos += 1
 
     escrever("start")
     gerar_bloco(bloco, global_vars)
     escrever("stop")
 
-    # Geração de funções (sem suporte a chamadas ainda)
     for decl in declaracoes:
         if isinstance(decl, list):
             for d in decl:
@@ -48,23 +51,23 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
                     pos_local = 0
                     for p in params:
                         for nome_param in p[1]:
-                            local_vars[nome_param] = pos_local
-                            escrever("pushi 0")  # espaço
+                            local_vars[nome_param] = ('local', pos_local)
+                            escrever("pushi 0")
                             pos_local += 1
                     for bloco_vars in func_decls:
                         for v in bloco_vars:
                             if v[0] == 'var_decl':
                                 for nome in v[1]:
-                                    local_vars[nome] = pos_local
+                                    local_vars[nome] = ('local', pos_local)
                                     escrever("pushi 0")
                                     pos_local += 1
-                    local_vars[nome_func] = pos_local  # para o valor de retorno
+                    local_vars[nome_func] = ('local', pos_local)
                     escrever("pushi 0")
                     gerar_bloco(func_bloco, local_vars)
-                    escrever("pushg 0")  # simplificação para return
+                    ret_pos = local_vars[nome_func][1]
+                    escrever(f"pushl {ret_pos}")
                     escrever("return")
 
-    # Escreve na pasta
     pasta_saida = "codigoVM"
     os.makedirs(pasta_saida, exist_ok=True)
     nome_out = os.path.splitext(os.path.basename(nome_ficheiro))[0] + ".vm"
@@ -84,17 +87,41 @@ def gerar_instr(instr, vars):
 
     if tipo == 'assign':
         _, var, _, expr = instr
-        gerar_expr(expr, vars)
-        if var in vars:
-            escrever(f"storeg {vars[var]}")
+
+        if isinstance(var, tuple) and var[0] == 'array_access':
+            arr_name = var[1]
+            index_expr = var[2]
+
+            gerar_expr(('var', arr_name), vars)  
+            gerar_expr(index_expr, vars)       
+            gerar_expr(expr, vars)          
+            escrever("storen")
+
         else:
-            raise Exception(f"Variável '{var}' não encontrada no contexto.")
+            gerar_expr(expr, vars)
+            if var in vars:
+                pos = vars[var]
+                if isinstance(pos, tuple) and pos[0] == 'local':
+                    escrever(f"storel {pos[1]}")
+                else:
+                    escrever(f"storeg {pos}")
+            else:
+                raise Exception(f"Variável '{var}' não encontrada no contexto.")
 
     elif tipo == 'read':
         _, var = instr
         escrever("read")
+        escrever("dup 1")
         escrever("atoi")
-        escrever(f"storeg {vars[var[1]]}")
+        if var[1] in vars:
+            pos = vars[var[1]]
+            if isinstance(pos, tuple) and pos[0] == 'local':
+                escrever(f"storel {pos[1]}")
+            else:
+                escrever(f"storeg {pos}")
+        else:
+            raise Exception(f"Variável '{var[1]}' não encontrada no contexto.")
+
 
     elif tipo == 'write':
         _, modo, exprs = instr
@@ -140,7 +167,7 @@ def gerar_instr(instr, vars):
         escrever(f"{label_inicio}:")
         escrever(f"pushg {vars[var]}")
         gerar_expr(fim, vars)
-        escrever("inf" if direcao == 'to' else "sup")
+        escrever("infeq" if direcao == 'to' else "sup")
         escrever(f"jz {label_fim}")
         gerar_instr(corpo, vars)
         escrever(f"pushg {vars[var]}")
@@ -164,15 +191,28 @@ def gerar_expr(expr, vars):
             escrever(f"pushi {expr[1]}")
         elif tipo == 'str':
             escrever(f"pushs \"{expr[1]}\"")
+        elif tipo == 'var':
+            if expr[1] in vars:
+                pos = vars[expr[1]]
+                if isinstance(pos, tuple) and pos[0] == 'local':
+                    escrever(f"pushl {pos[1]}")
+                else:
+                    escrever(f"pushg {pos}")
         elif tipo == 'bool':
             escrever("pushi 1" if expr[1] else "pushi 0")
-        elif tipo == 'var':
-            escrever(f"pushg {vars[expr[1]]}")
         elif tipo == 'call':
-            for arg in expr[2]:
-                gerar_expr(arg, vars)
-            escrever("pushn 1")  # espaço para o return
-            escrever(f"call {expr[1]}")
+            nome_func = expr[1]
+            args = expr[2]
+
+            if nome_func == 'length':
+                gerar_expr(args[0], vars)
+                escrever("strlen")
+
+            else:
+                for arg in args:
+                    gerar_expr(arg, vars)
+                escrever(f"pusha {nome_func}")
+                escrever("call")
         elif tipo == '+':
             gerar_expr(expr[1], vars)
             gerar_expr(expr[2], vars)
@@ -230,10 +270,10 @@ def gerar_expr(expr, vars):
             gerar_expr(expr[2], vars)
             escrever("or")
         elif tipo == 'array_access':
+            gerar_expr(('var', expr[1]), vars) 
             gerar_expr(expr[2], vars)
-            escrever(f"pushg {vars[expr[1]]}")
-            escrever("add")
             escrever("loadn")
+
         else:
             raise NotImplementedError(f"Expressão não suportada: {expr}")
 
