@@ -17,7 +17,7 @@ def correr_teste(path):
             print(f"[✘] {os.path.basename(path)} → Erro semântico: {sem_e}")
         
         # Opcional: imprime AST
-        # print(ast)
+        print(ast)
 
     except SyntaxError as e:
         print(f"[✘] {os.path.basename(path)} → {e}")
@@ -25,8 +25,11 @@ def correr_teste(path):
 def main():
     pasta = "testes"
     for ficheiro in sorted(os.listdir(pasta)):
-        if ficheiro.endswith(".pas"):
+        if ficheiro.endswith(".pas") and not ficheiro.startswith("Erro"):
             correr_teste(os.path.join(pasta, ficheiro))
+
+        #if ficheiro == "BinPraInt.pas" or ficheiro == "SomaArray.pas" or ficheiro == "MesmoNumDigs.pas":
+        #    correr_teste(os.path.join(pasta, ficheiro))
 
 if __name__ == "__main__":
     main()

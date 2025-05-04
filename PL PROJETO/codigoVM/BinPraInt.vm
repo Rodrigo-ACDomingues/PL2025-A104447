@@ -12,7 +12,6 @@ writes
 writeln
 read
 dup 1
-atoi
 storeg 0
 pushi 0
 storeg 2
@@ -24,11 +23,13 @@ storeg 1
 FOR0:
 pushg 1
 pushi 1
-sup
+supeq
 jz ENDFOR1
 pushg 0
 pushg 1
-loadn
+pushi 1
+sub
+charat
 pushs "1"
 equal
 jz ENDIF2

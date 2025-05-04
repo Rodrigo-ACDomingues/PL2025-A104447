@@ -8,7 +8,6 @@ writes
 writeln
 read
 dup 1
-atoi
 storeg 0
 pushg 0
 pusha BinToInt
@@ -21,45 +20,49 @@ writei
 writeln
 stop
 BinToInt:
+start
 pushi 0
 pushi 0
 pushi 0
 pushi 0
 pushi 0
-pushi 0
+storel 1
+pushi 1
 storel 2
-pushi 1
-storel 3
-pushl 0
+pushfp
+load -1
 strlen
-storeg ('local', 1)
+storeg ('local', 0)
 FOR0:
-pushg ('local', 1)
+pushg ('local', 0)
 pushi 1
-sup
+supeq
 jz ENDFOR1
+pushfp
+load -1
 pushl 0
-pushl 1
-loadn
+pushi 1
+sub
+charat
 pushs "1"
 equal
 jz ENDIF2
+pushl 1
 pushl 2
-pushl 3
 add
-storel 2
+storel 1
 ENDIF2:
-pushl 3
+pushl 2
 pushi 2
 mul
-storel 3
-pushg ('local', 1)
+storel 2
+pushg ('local', 0)
 pushi 1
 sub
-storeg ('local', 1)
+storeg ('local', 0)
 jump FOR0
 ENDFOR1:
-pushl 2
-storel 4
-pushl 4
+pushl 1
+storel 3
+pushl 3
 return

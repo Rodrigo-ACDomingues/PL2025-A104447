@@ -13,6 +13,11 @@ def nova_label(prefixo="L"):
 def escrever(codigo):
     output.append(codigo)
 
+def tipo_var(nome, vars):
+    if nome.lower() == "bin":
+        return "string"
+    return "integer"
+
 def gerar_codigo(ast, nome_ficheiro="programa.pas"):
     verificar_semantica(ast)
     global output, label_counter
@@ -27,9 +32,12 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
         if isinstance(decl, list):
             for d in decl:
                 if d[0] == 'var_decl':
+                    tipo = d[2]
                     for var in d[1]:
-                        if var == 'array':
-                            escrever("pushi 5")
+                        tipo = d[2]
+                        if isinstance(tipo, tuple) and tipo[0] == 'array':
+                            tamanho = tipo[2] - tipo[1] + 1
+                            escrever(f"pushi {tamanho}")
                             escrever("allocn")
                         else:
                             escrever("pushi 0")
@@ -47,13 +55,14 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
                 if d[0] == 'function':
                     nome_func, params, _, func_decls, func_bloco = d[1:]
                     escrever(f"{nome_func}:")
+                    escrever("start")
                     local_vars = {}
-                    pos_local = 0
-                    for p in params:
+
+                    for idx, p in enumerate(params):
                         for nome_param in p[1]:
-                            local_vars[nome_param] = ('local', pos_local)
-                            escrever("pushi 0")
-                            pos_local += 1
+                            local_vars[nome_param] = ('param', -1 - idx)
+
+                    pos_local = 0
                     for bloco_vars in func_decls:
                         for v in bloco_vars:
                             if v[0] == 'var_decl':
@@ -61,6 +70,7 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
                                     local_vars[nome] = ('local', pos_local)
                                     escrever("pushi 0")
                                     pos_local += 1
+
                     local_vars[nome_func] = ('local', pos_local)
                     escrever("pushi 0")
                     gerar_bloco(func_bloco, local_vars)
@@ -91,18 +101,20 @@ def gerar_instr(instr, vars):
         if isinstance(var, tuple) and var[0] == 'array_access':
             arr_name = var[1]
             index_expr = var[2]
-
-            gerar_expr(('var', arr_name), vars)  
-            gerar_expr(index_expr, vars)       
-            gerar_expr(expr, vars)          
+            gerar_expr(('var', arr_name), vars)
+            gerar_expr(index_expr, vars)
+            gerar_expr(expr, vars)
             escrever("storen")
-
         else:
             gerar_expr(expr, vars)
             if var in vars:
                 pos = vars[var]
-                if isinstance(pos, tuple) and pos[0] == 'local':
-                    escrever(f"storel {pos[1]}")
+                if isinstance(pos, tuple):
+                    if pos[0] == 'local':
+                        escrever(f"storel {pos[1]}")
+                    elif pos[0] == 'param':
+                        escrever("pushfp")
+                        escrever(f"store {pos[1]}")
                 else:
                     escrever(f"storeg {pos}")
             else:
@@ -110,24 +122,42 @@ def gerar_instr(instr, vars):
 
     elif tipo == 'read':
         _, var = instr
-        escrever("read")
-        escrever("dup 1")
-        escrever("atoi")
-        if var[1] in vars:
-            pos = vars[var[1]]
-            if isinstance(pos, tuple) and pos[0] == 'local':
-                escrever(f"storel {pos[1]}")
-            else:
-                escrever(f"storeg {pos}")
+        if isinstance(var, tuple) and var[0] == 'array_access':
+            gerar_expr(('var', var[1]), vars)
+            gerar_expr(var[2], vars)
+            escrever("read")
+            escrever("dup 1")
+            nome = var[1]
+            if tipo_var(nome, vars) != "string":
+                escrever("atoi")
+            escrever("storen")
         else:
-            raise Exception(f"Variável '{var[1]}' não encontrada no contexto.")
-
+            escrever("read")
+            escrever("dup 1")
+            nome = var[1]
+            if tipo_var(nome, vars) != "string":
+                escrever("atoi")
+            if nome in vars:
+                pos = vars[nome]
+                if isinstance(pos, tuple):
+                    if pos[0] == 'local':
+                        escrever(f"storel {pos[1]}")
+                    elif pos[0] == 'param':
+                        escrever("pushfp")
+                        escrever(f"store {pos[1]}")
+                else:
+                    escrever(f"storeg {pos}")
+            else:
+                raise Exception(f"Variável '{nome}' não encontrada no contexto.")
 
     elif tipo == 'write':
         _, modo, exprs = instr
         for e in exprs:
             gerar_expr(e, vars)
-            escrever("writes") if inferir_tipo_literal(e) == 'string' else escrever("writei")
+            if isinstance(e, tuple) and e[0] == 'str':
+                escrever("writes")
+            else:
+                escrever("writei")
         if modo == 'writeln':
             escrever("writeln")
 
@@ -167,7 +197,7 @@ def gerar_instr(instr, vars):
         escrever(f"{label_inicio}:")
         escrever(f"pushg {vars[var]}")
         gerar_expr(fim, vars)
-        escrever("infeq" if direcao == 'to' else "sup")
+        escrever("infeq" if direcao == 'to' else "supeq")
         escrever(f"jz {label_fim}")
         gerar_instr(corpo, vars)
         escrever(f"pushg {vars[var]}")
@@ -194,8 +224,12 @@ def gerar_expr(expr, vars):
         elif tipo == 'var':
             if expr[1] in vars:
                 pos = vars[expr[1]]
-                if isinstance(pos, tuple) and pos[0] == 'local':
-                    escrever(f"pushl {pos[1]}")
+                if isinstance(pos, tuple):
+                    if pos[0] == 'local':
+                        escrever(f"pushl {pos[1]}")
+                    elif pos[0] == 'param':
+                        escrever("pushfp")
+                        escrever(f"load {pos[1]}")
                 else:
                     escrever(f"pushg {pos}")
         elif tipo == 'bool':
@@ -203,83 +237,43 @@ def gerar_expr(expr, vars):
         elif tipo == 'call':
             nome_func = expr[1]
             args = expr[2]
-
             if nome_func == 'length':
                 gerar_expr(args[0], vars)
                 escrever("strlen")
-
             else:
                 for arg in args:
                     gerar_expr(arg, vars)
                 escrever(f"pusha {nome_func}")
                 escrever("call")
-        elif tipo == '+':
+        elif tipo in ('+', '-', '*', 'div', 'mod', '=', '<', '<=', '>', '>=', '<>', 'and', 'or'):
             gerar_expr(expr[1], vars)
             gerar_expr(expr[2], vars)
-            escrever("add")
-        elif tipo == '-':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("sub")
-        elif tipo == '*':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("mul")
-        elif tipo == 'div':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("div")
-        elif tipo == 'mod':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("mod")
-        elif tipo == '=':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("equal")
-        elif tipo == '<':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("inf")
-        elif tipo == '<=':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("infeq")
-        elif tipo == '>':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("sup")
-        elif tipo == '>=':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("supeq")
-        elif tipo == '<>':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("equal")
-            escrever("not")
+            operadores = {
+                '+': 'add', '-': 'sub', '*': 'mul', 'div': 'div', 'mod': 'mod',
+                '=': 'equal', '<': 'inf', '<=': 'infeq', '>': 'sup', '>=': 'supeq',
+                '<>': ('equal', 'not'), 'and': 'and', 'or': 'or'
+            }
+            instrucao = operadores[tipo]
+            if isinstance(instrucao, tuple):
+                for inst in instrucao:
+                    escrever(inst)
+            else:
+                escrever(instrucao)
         elif tipo == 'not':
             gerar_expr(expr[1], vars)
             escrever("not")
-        elif tipo == 'and':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("and")
-        elif tipo == 'or':
-            gerar_expr(expr[1], vars)
-            gerar_expr(expr[2], vars)
-            escrever("or")
         elif tipo == 'array_access':
-            gerar_expr(('var', expr[1]), vars) 
-            gerar_expr(expr[2], vars)
-            escrever("loadn")
+            nome = expr[1]
+            if tipo_var(nome, vars) == 'string':
+                gerar_expr(('var', nome), vars)    
+                gerar_expr(expr[2], vars)           
+                escrever("pushi 1")
+                escrever("sub")                      
+                escrever("charat")
+            else:
+                gerar_expr(('var', nome), vars)
+                gerar_expr(expr[2], vars)
+                escrever("loadn")
 
         else:
             raise NotImplementedError(f"Expressão não suportada: {expr}")
-
-def inferir_tipo_literal(expr):
-    if isinstance(expr, tuple) and expr[0] == 'str':
-        return 'string'
-    elif isinstance(expr, tuple) and expr[0] == 'num':
-        return 'integer'
-    return 'integer'

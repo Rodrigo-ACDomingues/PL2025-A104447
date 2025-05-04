@@ -1,4 +1,5 @@
-pushi 0
+pushi 5
+allocn
 storeg 0
 pushi 0
 storeg 1
@@ -15,10 +16,12 @@ pushg 1
 pushi 5
 infeq
 jz ENDFOR1
+pushg 0
+pushg 1
 read
 dup 1
 atoi
-storeg 0
+storen
 pushg 1
 pushi 1
 add
@@ -36,32 +39,33 @@ writei
 writeln
 stop
 Soma:
+start
 pushi 0
 pushi 0
 pushi 0
 pushi 0
-pushi 0
-storel 2
+storel 1
 pushi 1
-storeg ('local', 1)
+storeg ('local', 0)
 FOR2:
-pushg ('local', 1)
+pushg ('local', 0)
 pushi 5
 infeq
 jz ENDFOR3
-pushl 2
-pushl 0
 pushl 1
+pushfp
+load -1
+pushl 0
 loadn
 add
-storel 2
-pushg ('local', 1)
+storel 1
+pushg ('local', 0)
 pushi 1
 add
-storeg ('local', 1)
+storeg ('local', 0)
 jump FOR2
 ENDFOR3:
+pushl 1
+storel 2
 pushl 2
-storel 3
-pushl 3
 return
