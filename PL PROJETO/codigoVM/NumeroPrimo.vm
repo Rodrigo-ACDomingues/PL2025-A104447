@@ -9,7 +9,6 @@ pushs "Introduza um número inteiro positivo:"
 writes
 writeln
 read
-dup 1
 atoi
 storeg 0
 pushi 1
@@ -41,18 +40,18 @@ storeg 1
 jump WHILE0
 ENDWHILE1:
 pushg 2
-jz ELSE4
+jz ELSE3
 pushg 0
 writei
 pushs " é um número primo"
 writes
 writeln
-jump ENDIF3
-ELSE4:
+jump ENDIF4
+ELSE3:
 pushg 0
 writei
 pushs " não é um número primo"
 writes
 writeln
-ENDIF3:
+ENDIF4:
 stop

@@ -4,11 +4,9 @@ pushi 0
 storeg 1
 start
 read
-dup 1
 atoi
 storeg 0
 read
-dup 1
 atoi
 storeg 1
 pushg 0
@@ -18,43 +16,14 @@ pushg 1
 pusha NumDigitos
 call
 equal
-jz ELSE1
+jz ELSE0
 pushs "Têm o mesmo número de dígitos."
 writes
 writeln
-jump ENDIF0
-ELSE1:
+jump ENDIF1
+ELSE0:
 pushs "Têm número de dígitos diferente."
 writes
 writeln
-ENDIF0:
+ENDIF1:
 stop
-NumDigitos:
-start
-pushi 0
-pushi 0
-pushi 0
-storel 0
-WHILE2:
-pushfp
-load -1
-pushi 0
-equal
-not
-jz ENDWHILE3
-pushl 0
-pushi 1
-add
-storel 0
-pushfp
-load -1
-pushi 10
-div
-pushfp
-store -1
-jump WHILE2
-ENDWHILE3:
-pushl 0
-storel 1
-pushl 1
-return

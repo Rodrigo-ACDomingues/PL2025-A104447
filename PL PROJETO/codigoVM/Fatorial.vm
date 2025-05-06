@@ -9,7 +9,6 @@ pushs "Introduza um número inteiro positivo:"
 writes
 writeln
 read
-dup 1
 atoi
 storeg 0
 pushi 1

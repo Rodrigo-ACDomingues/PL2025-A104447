@@ -1,4 +1,4 @@
-pushi 0
+pushs ""
 storeg 0
 pushi 0
 storeg 1
@@ -11,7 +11,6 @@ pushs "Introduza uma string binária:"
 writes
 writeln
 read
-dup 1
 storeg 0
 pushi 0
 storeg 2
@@ -30,7 +29,7 @@ pushg 1
 pushi 1
 sub
 charat
-pushs "1"
+pushi 49
 equal
 jz ENDIF2
 pushg 2

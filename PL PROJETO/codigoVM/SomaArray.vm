@@ -1,5 +1,4 @@
-pushi 5
-allocn
+pushi 0
 storeg 0
 pushi 0
 storeg 1
@@ -18,16 +17,13 @@ pushg 1
 pushi 5
 infeq
 jz ENDFOR1
-pushg 0
-pushg 1
 read
-dup 1
 atoi
-storen
+storeg 0
 pushg 2
-pushg 0
 pushg 1
-loadn
+pushg 0
+charat
 add
 storeg 2
 pushg 1

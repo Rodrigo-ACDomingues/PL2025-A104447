@@ -1,4 +1,4 @@
-pushi 0
+pushs ""
 storeg 0
 pushi 0
 storeg 1
@@ -7,7 +7,6 @@ pushs "Introduza uma string binária:"
 writes
 writeln
 read
-dup 1
 storeg 0
 pushg 0
 pusha BinToInt
@@ -19,50 +18,3 @@ pushg 1
 writei
 writeln
 stop
-BinToInt:
-start
-pushi 0
-pushi 0
-pushi 0
-pushi 0
-pushi 0
-storel 1
-pushi 1
-storel 2
-pushfp
-load -1
-strlen
-storeg ('local', 0)
-FOR0:
-pushg ('local', 0)
-pushi 1
-supeq
-jz ENDFOR1
-pushfp
-load -1
-pushl 0
-pushi 1
-sub
-charat
-pushs "1"
-equal
-jz ENDIF2
-pushl 1
-pushl 2
-add
-storel 1
-ENDIF2:
-pushl 2
-pushi 2
-mul
-storel 2
-pushg ('local', 0)
-pushi 1
-sub
-storeg ('local', 0)
-jump FOR0
-ENDFOR1:
-pushl 1
-storel 3
-pushl 3
-return
