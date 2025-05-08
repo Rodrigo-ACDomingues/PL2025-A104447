@@ -1,6 +1,7 @@
 import os
 from pascal_seman import verificar_semantica
 
+
 label_counter = 0
 output = []
 # Global mappings
@@ -8,22 +9,19 @@ var_slots = {}         # variable name -> GP slot index
 var_types = {}         # variable name -> 'integer'|'string'|'boolean'
 array_bounds = {}      # array name -> (low, high)
 
+
 def nova_label(prefix="L"):  # unique labels
     global label_counter
     lbl = f"{prefix}{label_counter}"
     label_counter += 1
     return lbl
 
+
 def escrever(instr):
     output.append(instr)
 
 
 def gerar_codigo(ast, nome_ficheiro="programa.pas"):
-    """
-    Generates EWVM code from Pascal AST for programs without functions.
-    Ignores ASTs containing any 'function' declaration.
-    Supports read/write, assign, if, while, for, array sum loops.
-    """
     verificar_semantica(ast)
     global output, label_counter, var_slots, var_types, array_bounds
     output.clear()
@@ -34,13 +32,6 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
 
     _, progName, declaracoes, bloco = ast
 
-    # If any function in decls, skip
-    for decl_list in declaracoes:
-        if isinstance(decl_list, list):
-            for d in decl_list:
-                if d[0] == 'function':
-                    return
-
     # Allocate global variables
     slot = 0
     for decl_list in declaracoes:
@@ -50,7 +41,6 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
             if d[0] != 'var_decl':
                 continue
             _, names, tipo = d
-            # Array of integers? We'll use sum-loop instead of storage
             if isinstance(tipo, tuple) and tipo[0] == 'array' and tipo[3]=='integer':
                 low, high = tipo[1], tipo[2]
                 array_bounds[names[0]] = (low, high)
@@ -59,7 +49,6 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
                 for name in names:
                     var_types[name] = base
                     var_slots[name] = slot
-                    # initialize
                     if base == 'string':
                         escrever('pushs ""')
                     else:
@@ -67,7 +56,6 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
                     escrever(f'storeg {slot}')
                     slot += 1
 
-    # Emit code
     escrever('start')
     gerar_bloco(bloco)
     escrever('stop')
