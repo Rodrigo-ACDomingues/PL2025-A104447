@@ -1,17 +1,17 @@
-# Projeto de Compilador Pascal → EWVM
+# Projeto Compilador Pascal
 
-> **Disciplina**: Processamento de Linguagens 2024/25
-> **Grupo**: 59
-> **Integrantes**:  
-> - a104447 - Rodrigo Abreu Correia Domingues
-> - a104085 - Rafael Azevedo Correia
-> - a104452 - Rui Filipe Mesquita Amaral 
+> **Disciplina**: Processamento de Linguagens 2024/25  
+> **Grupo**: 59  
+> - a104447 - Rodrigo Abreu Correia Domingues  
+> - a104085 - Rafael Azevedo Correia  
+> - a104452 - Rui Filipe Mesquita Amaral  
 
 ---
 
 ## 1. Introdução
 
-Este relatório descreve a implementação de um compilador simples para um subset de Pascal que gera código para a **EWVM** (Easy‑Walk Virtual Machine). Apresentamos a arquitetura geral, as fases de análise e geração de código, bem como exemplos de programas de teste.
+Este relatório descreve a implementação de um compilador simples para Pascal que gera código para a **EWVM**.  
+Apresentamos a arquitetura geral, as fases de análise e geração de código, bem como exemplos de programas de teste.
 
 ---
 
@@ -37,37 +37,93 @@ Fluxo de dados:
 
 ### 3.1 Análise Léxica (`pascal_lex.py`)
 
-- Reconhecimento de **identificadores**, **números**, **strings** e **palavras-chave**.  
-- Ignora espaços em branco e comentários `{ ... }`.  
-- Emissão de tokens para o parser.
+1. **Definição de padrões**  
+   - **Identificadores**: `[A-Za-z][A-Za-z0-9]*`.  
+   - **Números inteiros**: `[0-9]+`.  
+   - **Strings**: delimitadas por aspas simples ('...').
+   - **Comentários**: `{ ... }`, ignorados.
+
+2. **Tokenização**  
+   - Converte pedaços em **tokens** `(TIPO, valor)`.  
+   - Exemplo de tokenização:  
+    - `"readln"` → `('READLN', 'readln')`  
+    - `"123"` → `('NUM', 123)`
+
+3. **Tratamento de erros**  
+   - Caracteres inesperados são ignorados após aviso, mantendo a análise.
+
+---
 
 ### 3.2 Análise Sintática (`pascal_yacc.py`)
 
-- Definições BNF para **declarações**, **comandos** e **expressões**.  
-- Construção de AST em tuplas aninhadas, por exemplo:
-  ```python
-  ('assign', 'x', ':=', ('num', 42))
-  ```
-- Regulação de precedência de operadores.
+1. **Gramática**  
+   - Regras para `program`, `declarações`, `comandos`, `expressões`.
+
+2. **Construção da AST**  
+   - Cada nó vira uma **tupla** aninhada.  
+     ```python
+     ('assign', 'x', ':=', ('num', 42))
+     ```
+
+3. **Precedência e associatividade**  
+   - Define nível de `*`,`/` > `+`,`-` > comparadores > lógicos.
+
+4. **Recuperação de erro**  
+   - A função p_error é usada para detetar erros de sintaxe, indicar a linha do erro (se possível) e permitir que o analisador continue a interpretação do programa sempre que possível.
+
+---
 
 ### 3.3 Análise Semântica (`pascal_seman.py`)
 
-- Tabela de símbolos para **variáveis** e **funções**.  
-- Verificação de **compatibilidade de tipos** em atribuições, condicionais e expressões.  
-- Registro de limites de **arrays** como `(lower_bound, upper_bound)`.
+1. **Tabela de símbolos**  
+   - Regista variáveis e funções com tipo e, para arrays, limites `(low, high)`.
+
+2. **Verificações**  
+   - **Declaração prévia**: uso só após `var`.  
+   - **Tipos compatíveis**: atribuições, condicionais e expressões.  
+   - **Índices de array** dentro de `low..high`.
+
+3. **Escopos de funções**  
+   - Nova tabela local para parâmetros e variáveis internas.
+
+4. **Erros detectados**  
+   - Não declarados, incompatibilidade de tipo, acesso fora de limites.
+
+---
 
 ### 3.4 Geração de Código EWVM (`pascal_codegen.py`)
 
-- Alocação de **GP slots** para variáveis globais (`var_slots[name]`).  
-- Mapeamento de **tipos básicos** (`var_types[name]`).  
-- Instruções emitidas:
-  - `pushi`, `pushs`, `storeg`, `pushg`  
-  - Entrada/Saída: `read`, `atoi`, `writei`, `writes`, `writeln`  
-  - Controle: `jz`, `jump`, `charat`, `strlen`, operações aritméticas e lógicas  
+1. **Mapeamento de variáveis**  
+   - Cada variável global → um **GP slot** (`var_slots[name]`).
 
-- **Rótulos únicos**: `nova_label()` gera `WHILE0`, `FOR1`, etc.  
-- Implementação de **estrutura de repetição** genérica (inicialização, teste, corpo, passo).  
-- Detecção de padrão de **acumulação de array** e tradução para loop `while`.
+2. **Inicialização**  
+   - Antes do `start`, empilha cada slot com `0` ou `""`:
+     ```vm
+     pushi 0
+     storeg 3
+     ```
+
+3. **Instruções principais**  
+   - **Empilhar**: `pushi`, `pushs`, `pushg`.  
+   - **Armazenar**: `storeg`.  
+   - **Entrada/Saída**:  
+     - `read` → string, `atoi` → inteiro  
+     - `writes` → string, `writei` → inteiro, `writeln` → nova linha  
+   - **Operações**: `add`, `sub`, `mul`, `div`, `mod`, comparadores, lógicos, `strlen`, `charat`.
+
+4. **Rótulos**  
+   - `nova_label()` gera nomes únicos: `WHILE0`, `FOR1`, `ELSE2`, etc.
+
+5. **Estrutura de repetição genérico**  
+   - **Inicialização** do contador  
+   - **Teste** de condição (`infeq`, `supeq`)  
+   - **Corpo** do loop 
+   - **Passo** (incremento/decremento)  
+   - **Repetição** (jump para o início)
+
+6. **Detecção de soma de array**  
+   - Reconhece padrão `for i := 1 to N do read; soma := soma + …`  
+   - Gera um `while` decremental num contador genérico.
 
 ---
 
@@ -86,10 +142,10 @@ Fluxo de dados:
     ├── Maior3.pas
     ├── BinPraInt.pas
     ├── SomaArray.pas
-    └── … demais exemplos
+    └── … outros exemplos
 ```
 
-Os arquivos `.vm` gerados ficam em `codigoVM/`.
+Os arquivos `.vm` gerados ficam guardados em `codigoVM/`.
 
 ---
 
@@ -97,7 +153,6 @@ Os arquivos `.vm` gerados ficam em `codigoVM/`.
 
 ### 5.1 HelloWorld.pas
 
-**Fonte**:
 ```pascal
 program HelloWorld;
 begin
@@ -107,7 +162,6 @@ end.
 
 ### 5.2 SomaArray.pas
 
-Computa a soma dos 5 números lidos:
 ```pascal
 program SomaArray;
 var
@@ -115,7 +169,7 @@ var
   soma: integer;
 begin
   soma := 0;
-  writeln('Introduza 5 números:');
+  writeln('Introduza 5 números inteiros:');
   for i := 1 to 5 do
     readln(numeros[i]);
   writeln('Soma = ', soma);
@@ -126,19 +180,15 @@ end.
 
 ## 6. Conclusões e Trabalhos Futuros
 
-- O compilador atende aos requisitos para o subset de Pascal.  
-- Limitações:
-  - não suporta funções recursivas no codegen;  
-  - sem tipos `real`, `record` ou `pointer`.  
-- Extensões possíveis:
-  - Geração de código para **calls** e **retornos**;  
-  - Otimizações de laços e expressões;  
-  - Detecção de erros em tempo de execução na EWVM.
+- O compilador suporta a linguagem Pascal e produz corretamente o código correspondente para a máquina virtual EWVM.
+- **Limitações**:
+  - Não suporta geração de chamadas a funções recursivas.  
+  - Arrays são traduzidos apenas no padrão de soma; acesso aleatório não é suportado.  
+- **Possíveis extensões**:
+  - Suporte completo a **call** de funções.  
+  - Otimizações de expressões e loops.  
+  - Implementação de variáveis locais e escopos aninhados.  
 
 ---
 
-## 7. Referências
-
-- [PLY (Python Lex-Yacc)](http://www.dabeaz.com/ply/)  
-- Especificação EWVM  
-- Apostilas de **Compiladores**
+> **Observação:** Para detalhes de uso, consulte o README e o script `teste_codegen.py`.  

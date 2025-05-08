@@ -14,7 +14,7 @@ tokens = [
     'LPAREN', 'RPAREN', 'LBRACKET', 'RBRACKET',
     'COLON', 'SEMICOLON', 'COMMA', 'DOT', 'DOTDOT',
 
-    # Palavras reservadas
+    # Outras palavras
     'PROGRAM', 'VAR', 'BEGIN', 'END',
     'INTEGER', 'REAL_TYPE', 'STRING_TYPE', 'BOOLEAN',
     'READLN', 'WRITELN', 'WRITE',
@@ -54,7 +54,7 @@ t_DOT        = r'\.'
 # Ignorar espaços e tabs
 t_ignore = ' \t'
 
-# Comentários entre chaves
+# Comentários
 def t_COMMENT(t):
     r'\{[^}]*\}'
     pass
@@ -71,7 +71,7 @@ def t_NUMBER(t):
     t.value = int(t.value)
     return t
 
-# Strings entre apóstrofos
+# Strings entre apóstrofes
 def t_STRING_LITERAL(t):
     r'\'([^\\\n]|(\\.))*?\''
     t.value = t.value[1:-1]
@@ -135,4 +135,4 @@ def t_error(t):
     raise SyntaxError(f"Caractere ilegal '{t.value[0]}' (linha {t.lineno})")
 
 # Construir o lexer
-lexer = lex.lex(reflags=re.IGNORECASE) # Pode ser problemático com o stor mas ainda vou ponderar
+lexer = lex.lex(reflags=re.IGNORECASE)

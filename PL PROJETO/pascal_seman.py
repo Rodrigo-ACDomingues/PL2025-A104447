@@ -3,7 +3,7 @@ class ErroSemantico(Exception):
 
 def verificar_semantica(ast):
     contexto = {
-        'variaveis': {},  # nome -> tipo (por agora, só usamos string, integer, boolean)
+        'variaveis': {},  # nome -> tipo (por agora, só usa string, integer, boolean)
         'funcoes': {
             'length': 1, 'ord': 1, 'chr': 1,
             'pred': 1, 'succ': 1, 'abs': 1,
@@ -51,7 +51,6 @@ def analisar_programa(ast, contexto):
                     contexto_func['variaveis'][nome_func] = normalizar_tipo(tipo_retorno)
                     analisar_bloco(func_bloco, contexto_func)
 
-    # Finalmente, analisar bloco principal
     analisar_bloco(bloco, contexto)
 
 def normalizar_tipo(tipo):
@@ -142,7 +141,7 @@ def analisar_expressao(expr, contexto):
         analisar_expressao(indice, contexto)
         tipo_array = contexto['variaveis'][nome]
         if isinstance(tipo_array, tuple) and tipo_array[0] == 'array':
-            return tipo_array[3]  # tipo dos elementos
+            return tipo_array[3]
         return tipo_array
 
     elif tipo == 'call':
@@ -154,7 +153,7 @@ def analisar_expressao(expr, contexto):
             raise ErroSemantico(f"Função '{nome}' chamada com {len(argumentos)} argumento(s), mas esperava {esperados}")
         for arg in argumentos:
             analisar_expressao(arg, contexto)
-        return 'integer'  # simplificação
+        return 'integer'
 
     elif tipo in ('+', '-', '*', 'div', 'mod'):
         t1 = analisar_expressao(expr[1], contexto)
