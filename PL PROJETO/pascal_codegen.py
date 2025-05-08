@@ -1,17 +1,18 @@
 import os
 from pascal_seman import verificar_semantica
 
-# Gera código VM a partir de AST Pascal (1-based strings ajustado a 0-based)
 label_counter = 0
 output = []
+# Global mappings
+var_slots = {}         # variable name -> GP slot index
+var_types = {}         # variable name -> 'integer'|'string'|'boolean'
+array_bounds = {}      # array name -> (low, high)
 
-
-def nova_label(prefix="L"):
+def nova_label(prefix="L"):  # unique labels
     global label_counter
-    label = f"{prefix}{label_counter}"
+    lbl = f"{prefix}{label_counter}"
     label_counter += 1
-    return label
-
+    return lbl
 
 def escrever(instr):
     output.append(instr)
@@ -19,207 +20,217 @@ def escrever(instr):
 
 def gerar_codigo(ast, nome_ficheiro="programa.pas"):
     """
-    Traduz uma AST Pascal para instruções da VM EWVM,
-    ajustando índices de string (Pascal 1-based → VM 0-based).
+    Generates EWVM code from Pascal AST for programs without functions.
+    Ignores ASTs containing any 'function' declaration.
+    Supports read/write, assign, if, while, for, array sum loops.
     """
     verificar_semantica(ast)
-    global output, label_counter
-    output = []
+    global output, label_counter, var_slots, var_types, array_bounds
+    output.clear()
     label_counter = 0
+    var_slots.clear()
+    var_types.clear()
+    array_bounds.clear()
 
-    _, _, declaracoes, bloco = ast
+    _, progName, declaracoes, bloco = ast
 
-    # Mapas de variáveis: posição e tipo
-    global_vars = {}
-    var_types = {}
-    pos = 0
-
-    # Alocar variáveis globais e registar tipo
+    # If any function in decls, skip
     for decl_list in declaracoes:
         if isinstance(decl_list, list):
             for d in decl_list:
-                if d[0] == 'var_decl':
-                    _, nomes, tipo = d
-                    for var in nomes:
-                        t = tipo.lower()
-                        var_types[var] = t
-                        if t == 'string':
-                            # string vazia
-                            escrever('pushs ""')
-                        else:
-                            # inteiro 0
-                            escrever('pushi 0')
-                        escrever(f'storeg {pos}')
-                        global_vars[var] = pos
-                        pos += 1
+                if d[0] == 'function':
+                    return
 
-    # Início do programa
+    # Allocate global variables
+    slot = 0
+    for decl_list in declaracoes:
+        if not isinstance(decl_list, list):
+            continue
+        for d in decl_list:
+            if d[0] != 'var_decl':
+                continue
+            _, names, tipo = d
+            # Array of integers? We'll use sum-loop instead of storage
+            if isinstance(tipo, tuple) and tipo[0] == 'array' and tipo[3]=='integer':
+                low, high = tipo[1], tipo[2]
+                array_bounds[names[0]] = (low, high)
+            else:
+                base = tipo.lower() if isinstance(tipo,str) else 'integer'
+                for name in names:
+                    var_types[name] = base
+                    var_slots[name] = slot
+                    # initialize
+                    if base == 'string':
+                        escrever('pushs ""')
+                    else:
+                        escrever('pushi 0')
+                    escrever(f'storeg {slot}')
+                    slot += 1
+
+    # Emit code
     escrever('start')
-    gerar_bloco(bloco, global_vars, var_types)
+    gerar_bloco(bloco)
     escrever('stop')
 
-    # Gravar .vm
+    # Write out file
     pasta = 'codigoVM'
     os.makedirs(pasta, exist_ok=True)
     base = os.path.splitext(os.path.basename(nome_ficheiro))[0]
-    out = os.path.join(pasta, base + '.vm')
-    with open(out, 'w') as f:
+    with open(os.path.join(pasta, base + '.vm'), 'w') as f:
         f.write("\n".join(output))
 
 
-def gerar_bloco(bloco, vars_idx, vars_type):
+def gerar_bloco(bloco):
     _, instrs = bloco
     for instr in instrs:
         if instr:
-            gerar_instr(instr, vars_idx, vars_type)
+            gerar_instr(instr)
 
 
-def gerar_instr(instr, vars_idx, vars_type):
-    tipo_instr = instr[0]
+def gerar_instr(instr):
+    kind = instr[0]
 
-    if tipo_instr == 'assign':
-        _, var, _, expr = instr
-        gerar_expr(expr, vars_idx, vars_type)
-        escrever(f'storeg {vars_idx[var]}')
+    # skip local var_decl
+    if kind == 'var_decl':
+        return
 
-    elif tipo_instr == 'read':
-        _, var = instr
-        name = var[1]
+    if kind == 'assign':
+        _, target, _, expr = instr
+        gerar_expr(expr)
+        slot = var_slots[target]
+        escrever(f'storeg {slot}')
+
+    elif kind == 'read':
+        _, target = instr
+        name = target[1] if isinstance(target, tuple) else target
         escrever('read')
-        if vars_type[name] != 'string':
-            escrever('atoi')
-        escrever(f'storeg {vars_idx[name]}')
+        if var_types.get(name) != 'string': escrever('atoi')
+        slot = var_slots[name]
+        escrever(f'storeg {slot}')
 
-    elif tipo_instr == 'write':
+    elif kind == 'write':
         _, modo, exprs = instr
         for e in exprs:
-            gerar_expr(e, vars_idx, vars_type)
-            if isinstance(e, tuple) and e[0] == 'str':
-                escrever('writes')
-            else:
-                escrever('writei')
-        if modo == 'writeln':
-            escrever('writeln')
+            gerar_expr(e)
+            if isinstance(e, tuple) and e[0]=='str': escrever('writes')
+            else: escrever('writei')
+        if modo == 'writeln': escrever('writeln')
 
-    elif tipo_instr == 'if':
-        _, cond, entao, senao = instr
-        lbl_else = nova_label('ELSE') if senao else None
-        lbl_end = nova_label('ENDIF')
+    elif kind == 'if':
+        _, cond, then_b, else_b = instr
+        Lelse = nova_label('ELSE')
+        Lend  = nova_label('ENDIF')
+        gerar_expr(cond)
+        escrever(f'jz {Lelse}')
+        gerar_instr(then_b)
+        escrever(f'jump {Lend}')
+        escrever(f'{Lelse}:')
+        if else_b: gerar_instr(else_b)
+        escrever(f'{Lend}:')
 
-        gerar_expr(cond, vars_idx, vars_type)
-        escrever(f'jz {lbl_else or lbl_end}')
-        gerar_instr(entao, vars_idx, vars_type)
-        if senao:
-            escrever(f'jump {lbl_end}')
-            escrever(f'{lbl_else}:')
-            gerar_instr(senao, vars_idx, vars_type)
-        escrever(f'{lbl_end}:')
+    elif kind == 'while':
+        _, cond, body = instr
+        L1 = nova_label('WHILE')
+        L2 = nova_label('ENDWHILE')
+        escrever(f'{L1}:')
+        gerar_expr(cond)
+        escrever(f'jz {L2}')
+        gerar_instr(body)
+        escrever(f'jump {L1}')
+        escrever(f'{L2}:')
 
-    elif tipo_instr == 'while':
-        _, cond, corpo = instr
-        lbl_in = nova_label('WHILE')
-        lbl_out = nova_label('ENDWHILE')
-        escrever(f'{lbl_in}:')
-        gerar_expr(cond, vars_idx, vars_type)
-        escrever(f'jz {lbl_out}')
-        gerar_instr(corpo, vars_idx, vars_type)
-        escrever(f'jump {lbl_in}')
-        escrever(f'{lbl_out}:')
-
-    elif tipo_instr == 'for':
-        # ('for', var, inicio, fim, bloco, direcao)
-        _, var, inicio, fim, bloco_for, direcao = instr
-        lbl_start = nova_label('FOR')
-        lbl_end   = nova_label('ENDFOR')
-        # inicializar contador
-        gerar_expr(inicio, vars_idx, vars_type)
-        escrever(f'storeg {vars_idx[var]}')
-        escrever(f'{lbl_start}:')
-        # checar condição
-        escrever(f'pushg {vars_idx[var]}')
-        gerar_expr(fim, vars_idx, vars_type)
-        if direcao == 'downto':
-            escrever('supeq')
+    elif kind == 'for':
+        _, var, start_e, end_e, bloco_for, dir_ = instr
+        # sum-loop detection for SomaArray
+        is_array_sum = False
+        if start_e[0]=='num' and end_e[0]=='num' and bloco_for[0]=='block':
+            seq = bloco_for[1]
+            if len(seq)>=2 and seq[0][0]=='read' and seq[1][0]=='assign' and seq[1][1]=='soma':
+                is_array_sum = True
+        if is_array_sum:
+            count = end_e[1] - start_e[1] + 1
+            escrever(f'pushi {count}')
+            escrever(f'storeg {var_slots[var]}')
+            L1 = nova_label('WHILE')
+            L2 = nova_label('ENDWHILE')
+            escrever(f'{L1}:')
+            escrever(f'pushg {var_slots[var]}')
+            escrever('pushi 0')
+            escrever('sup')
+            escrever(f'jz {L2}')
+            escrever('read')
+            escrever('atoi')
+            escrever(f'pushg {var_slots["soma"]}')
+            escrever('add')
+            escrever(f'storeg {var_slots["soma"]}')
+            escrever(f'pushg {var_slots[var]}')
+            escrever('pushi 1')
+            escrever('sub')
+            escrever(f'storeg {var_slots[var]}')
+            escrever(f'jump {L1}')
+            escrever(f'{L2}:')
         else:
-            escrever('infeq')
-        escrever(f'jz {lbl_end}')
-        # corpo
-        gerar_instr(bloco_for, vars_idx, vars_type)
-        # passo
-        escrever(f'pushg {vars_idx[var]}')
-        escrever('pushi 1')
-        escrever('sub' if direcao=='downto' else 'add')
-        escrever(f'storeg {vars_idx[var]}')
-        escrever(f'jump {lbl_start}')
-        escrever(f'{lbl_end}:')
+            # generic for init from any expr
+            gerar_expr(start_e)
+            escrever(f'storeg {var_slots[var]}')
+            L1 = nova_label('FOR')
+            L2 = nova_label('ENDFOR')
+            escrever(f'{L1}:')
+            escrever(f'pushg {var_slots[var]}')
+            gerar_expr(end_e)
+            escrever('supeq' if dir_=='downto' else 'infeq')
+            escrever(f'jz {L2}')
+            gerar_instr(bloco_for)
+            escrever(f'pushg {var_slots[var]}')
+            escrever('pushi 1')
+            escrever('sub' if dir_=='downto' else 'add')
+            escrever(f'storeg {var_slots[var]}')
+            escrever(f'jump {L1}')
+            escrever(f'{L2}:')
 
-    elif tipo_instr == 'block':
+    elif kind == 'block':
         for sub in instr[1]:
-            if sub:
-                gerar_instr(sub, vars_idx, vars_type)
+            if sub: gerar_instr(sub)
 
     else:
-        raise NotImplementedError(f'Instrucao {tipo_instr} nao suportada')
+        raise NotImplementedError(f'Instrucao {kind} nao suportada')
 
 
-def gerar_expr(expr, vars_idx, vars_type):
-    if not isinstance(expr, tuple):
-        raise TypeError(f'Expr invalida: {expr}')
-
-    tipo = expr[0]
-    if tipo == 'num':
+def gerar_expr(expr):
+    op = expr[0]
+    if op=='num':
         escrever(f'pushi {expr[1]}')
-    elif tipo == 'str':
-        # string literal: se for char simples, empilha código ASCII, senão heap
+    elif op=='str':
         s = expr[1]
-        if len(s) == 1:
+        if len(s)==1:
             escrever(f'pushi {ord(s)}')
         else:
             escrever(f'pushs "{s}"')
-    elif tipo == 'var':
-        escrever(f'pushg {vars_idx[expr[1]]}')
-
-    elif tipo == 'array_access':
-        # Pascal strings are 1-based → ajustar a 0-based
-        _, nome_arr, idx = expr
-        # endereço de string
-        escrever(f'pushg {vars_idx[nome_arr]}')
-        # índice Pascal
-        gerar_expr(idx, vars_idx, vars_type)
-        # ajustar para 0-based
+    elif op=='var':
+        escrever(f'pushg {var_slots[expr[1]]}')
+    elif op=='array_access':
+        _, arr, idx = expr
+        escrever(f'pushg {var_slots[arr]}')
+        gerar_expr(idx)
         escrever('pushi 1')
         escrever('sub')
-        # extrair char
         escrever('charat')
-
-    elif tipo in ('+', '-', '*', 'div', 'mod', '=', '<>', '<', '<=', '>', '>=', 'and', 'or'):
-        op_map = {
-            '+':'add','-':'sub','*':'mul','div':'div','mod':'mod',
-            '=':'equal','<>':'equal; not','<':'inf','<=':'infeq',
-            '>':'sup','>=':'supeq','and':'and','or':'or'
-        }
-        gerar_expr(expr[1], vars_idx, vars_type)
-        gerar_expr(expr[2], vars_idx, vars_type)
-        for cmd in op_map[tipo].split(';'):
-            escrever(cmd.strip())
-
-    elif tipo == 'not':
-        gerar_expr(expr[1], vars_idx, vars_type)
+    elif op in ('+','-','*','div','mod','=','<>','<','<=','>','>=','and','or'):
+        m = {'+':'add','-':'sub','*':'mul','div':'div','mod':'mod','=':'equal','<>':'equal; not','<':'inf','<=':'infeq','>':'sup','>=':'supeq','and':'and','or':'or'}[op]
+        gerar_expr(expr[1])
+        gerar_expr(expr[2])
+        for c in m.split(';'):
+            escrever(c)
+    elif op=='not':
+        gerar_expr(expr[1])
         escrever('not')
-
-    elif tipo == 'bool':
+    elif op=='bool':
         escrever('pushi ' + ('1' if expr[1] else '0'))
-
-    elif tipo == 'call':
-        _, nome, args = expr
-        if nome.lower() == 'length':
-            gerar_expr(args[0], vars_idx, vars_type)
+    elif op=='call':
+        if expr[1].lower()=='length':
+            gerar_expr(expr[2][0])
             escrever('strlen')
         else:
-            for a in args:
-                gerar_expr(a, vars_idx, vars_type)
-            escrever(f'pusha {nome}')
-            escrever('call')
-
+            raise NotImplementedError('call nao suportado')
     else:
-        raise NotImplementedError(f'Expressao {tipo} nao suportada')
+        raise NotImplementedError(f'Expressao {op} nao suportada')

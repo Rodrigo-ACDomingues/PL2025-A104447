@@ -25,11 +25,11 @@ def correr_teste(path):
 def main():
     pasta = "testes"
     for ficheiro in sorted(os.listdir(pasta)):
-        #if ficheiro.endswith(".pas") and not ficheiro.startswith("Erro"):
-        #    correr_teste(os.path.join(pasta, ficheiro))
-
-        if ficheiro == "BinPraInt.pas":
+        if ficheiro.endswith(".pas") and not ficheiro.startswith("Erro"):
             correr_teste(os.path.join(pasta, ficheiro))
+
+        #if ficheiro == "SomaArray.pas":
+        #    correr_teste(os.path.join(pasta, ficheiro))
 
 if __name__ == "__main__":
     main()

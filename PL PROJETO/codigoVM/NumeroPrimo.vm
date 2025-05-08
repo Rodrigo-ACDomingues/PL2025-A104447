@@ -29,10 +29,12 @@ pushg 1
 mod
 pushi 0
 equal
-jz ENDIF2
+jz ELSE2
 pushi 0
 storeg 2
-ENDIF2:
+jump ENDIF3
+ELSE2:
+ENDIF3:
 pushg 1
 pushi 1
 add
@@ -40,18 +42,18 @@ storeg 1
 jump WHILE0
 ENDWHILE1:
 pushg 2
-jz ELSE3
+jz ELSE4
 pushg 0
 writei
 pushs " é um número primo"
 writes
 writeln
-jump ENDIF4
-ELSE3:
+jump ENDIF5
+ELSE4:
 pushg 0
 writei
 pushs " não é um número primo"
 writes
 writeln
-ENDIF4:
+ENDIF5:
 stop

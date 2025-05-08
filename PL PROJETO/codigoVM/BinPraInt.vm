@@ -31,12 +31,14 @@ sub
 charat
 pushi 49
 equal
-jz ENDIF2
+jz ELSE2
 pushg 2
 pushg 3
 add
 storeg 2
-ENDIF2:
+jump ENDIF3
+ELSE2:
+ENDIF3:
 pushg 3
 pushi 2
 mul
