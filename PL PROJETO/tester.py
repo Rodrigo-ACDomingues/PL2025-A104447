@@ -17,7 +17,7 @@ def correr_teste(path):
             print(f"[✘] {os.path.basename(path)} → Erro semântico: {sem_e}")
         
         # Opcional: imprime AST
-        print(ast)
+        #print(ast)
 
     except SyntaxError as e:
         print(f"[✘] {os.path.basename(path)} → {e}")
