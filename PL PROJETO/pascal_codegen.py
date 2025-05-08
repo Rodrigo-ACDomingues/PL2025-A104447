@@ -21,18 +21,13 @@ def nova_label(prefix="L"):  # Gera um rótulo único com prefixo
     return lbl
 
 
-def escrever(instr):  # Adiciona uma instrução à lista de saída
+def escrever(instr):  # Adiciona uma instrução à lista de output
     output.append(instr)
 
 
 def gerar_codigo(ast, nome_ficheiro="programa.pas"):
-    """
-    Função principal:
-    - Verifica semântica da AST
-    - Aloca variáveis globais (GP) e registra arrays
-    - Emite start … stop
-    - Grava o .vm em codigoVM/<nome>.vm
-    """
+
+    # Verifica semântica da AST
     verificar_semantica(ast)
     global output, label_counter, var_slots, var_types, array_bounds
     # Reset das estruturas globais
@@ -45,7 +40,7 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
     # Desestrutura AST: ('program', nome, [decls], bloco)
     _, progName, declaracoes, bloco = ast
 
-    # 1) Alocar variáveis globais
+    # Alocar variáveis globais
     slot = 0
     for decl_list in declaracoes:
         if not isinstance(decl_list, list):
@@ -55,7 +50,7 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
                 continue
             # d == ('var_decl', [nomes], tipo)
             _, names, tipo = d
-            # Se for array de inteiros: não alocar slots, apenas registrar limites
+            # Se for array de inteiros não aloca slots apenas registra limites
             if isinstance(tipo, tuple) and tipo[0]=='array' and tipo[3]=='integer':
                 low, high = tipo[1], tipo[2]
                 array_bounds[names[0]] = (low, high)
@@ -73,12 +68,12 @@ def gerar_codigo(ast, nome_ficheiro="programa.pas"):
                     escrever(f'storeg {slot}')  # armazena em gp[slot]
                     slot += 1
 
-    # 2) Emitir código do programa
+    # Escrever código do programa
     escrever('start')         # início do programa
     gerar_bloco(bloco)        # traduz o bloco principal recursivamente
     escrever('stop')          # fim do programa
 
-    # 3) Gravar em disco
+    # 3) Gravar na pasta 'codigoVM'
     pasta = 'codigoVM'
     os.makedirs(pasta, exist_ok=True)
     base = os.path.splitext(os.path.basename(nome_ficheiro))[0]
@@ -105,20 +100,20 @@ def gerar_instr(instr):
     # ASSIGN: ('assign', alvo, ':=', expr)
     if kind == 'assign':
         _, target, _, expr = instr
-        gerar_expr(expr)                     # gera código para o RHS
+        gerar_expr(expr)                     # gera código
         slot = var_slots[target]             # identifica slot GP
         escrever(f'storeg {slot}')           # armazena resultado
 
     # READ: ('read', alvo)
     elif kind == 'read':
         _, target = instr
-        # ex.: target = ('var','a') ou similar
+        # ex.: target = ('var','a') ou parecido
         name = target[1] if isinstance(target, tuple) else target
         escrever('read')                    # lê string
         if var_types.get(name) != 'string':  # se não for string
             escrever('atoi')                # converte para inteiro
         slot = var_slots[name]
-        escrever(f'storeg {slot}')         # armazena
+        escrever(f'storeg {slot}')         # guarda
 
     # WRITE/WRTIELN: ('write','writeln', [exprs])
     elif kind == 'write':
@@ -130,7 +125,7 @@ def gerar_instr(instr):
             else:
                 escrever('writei')            # inteiro ou booleano
         if modo == 'writeln':
-            escrever('writeln')             # nova linha
+            escrever('writeln')             # newline
 
     # IF: ('if', cond, then_b, else_b)
     elif kind == 'if':
@@ -153,7 +148,7 @@ def gerar_instr(instr):
         L2 = nova_label('ENDWHILE')
         escrever(f'{L1}:')                  # label início
         gerar_expr(cond)
-        escrever(f'jz {L2}')                # se cond==0, sai
+        escrever(f'jz {L2}')                # se cond==0 sai
         gerar_instr(body)
         escrever(f'jump {L1}')              # volta ao início
         escrever(f'{L2}:')                  # label fim
@@ -161,7 +156,7 @@ def gerar_instr(instr):
     # FOR: ('for', var, start_e, end_e, bloco_for, 'to'/'downto')
     elif kind == 'for':
         _, var, start_e, end_e, bloco_for, dir_ = instr
-        # Detecta o padrão SomaArray (leitura + acumulador)
+        # Detecta o padrão como em SomaArray (leitura + acumulador)
         is_array_sum = False
         if start_e[0]=='num' and end_e[0]=='num' and bloco_for[0]=='block':
             seq = bloco_for[1]
@@ -193,7 +188,7 @@ def gerar_instr(instr):
             escrever(f'jump {L1}')
             escrever(f'{L2}:')
         else:
-            # laço genérico: init, teste, corpo, passo
+            # loop: init, teste, corpo, passo
             gerar_expr(start_e)                # empilha valor inicial
             escrever(f'storeg {var_slots[var]}')
             L1 = nova_label('FOR')
@@ -218,7 +213,7 @@ def gerar_instr(instr):
                 gerar_instr(sub)
 
     else:
-        # Qualquer outro tipo de instrução não suportada
+        # Qualquer outro tipo de instrução não funciona
         raise NotImplementedError(f'Instrucao {kind} nao suportada')
 
 
@@ -236,7 +231,7 @@ def gerar_expr(expr):
     elif op=='var':
         escrever(f'pushg {var_slots[expr[1]]}')  # variável global
     elif op=='array_access':
-        # acesso a string 1-based no BinPraInt: charat
+        # acesso a string no BinPraInt: charat
         _, arr, idx = expr
         escrever(f'pushg {var_slots[arr]}')
         gerar_expr(idx)
@@ -254,7 +249,7 @@ def gerar_expr(expr):
             escrever(c)
     elif op=='not':
         gerar_expr(expr[1])
-        escrever('not')                      # negação lógica
+        escrever('not') # negaçao
     elif op=='bool':
         escrever('pushi ' + ('1' if expr[1] else '0'))  # booleano
     elif op=='call':
